@@ -1,0 +1,100 @@
+version: "3"
+
+volumes:
+ myproject_db_vol:
+ myproject_redis_vol:
+ myproject_media_vol:
+ certs:
+ vhost:
+ html:
+ dhparam:
+
+services:
+ redis:
+   image: redis:5
+   command: redis-server /etc/redis/redis.conf
+   volumes:
+      - myproject_redis_vol:/data
+      - ./compose/redis/redis.conf:/etc/redis/redis.conf
+   ports:
+      - "6379:6379"
+   restart: always
+
+ db:
+   image: mysql:5.7
+   environment:
+      - MYSQL_ROOT_PASSWORD=yanboss666
+   volumes:
+      - myproject_db_vol:/var/lib/mysql:rw
+      - ./compose/mysql/conf/my.cnf:/etc/mysql/my.cnf
+      - ./compose/mysql/init:/docker-entrypoint-initdb.d/
+   ports:
+      - "3306:3306"
+   restart: always
+
+ web:
+   build: ./amusement
+   expose:
+      - "8000"
+   volumes:
+      - ./amusement:/var/www/html/amusement
+      - myproject_media_vol:/var/www/html/amusement/media
+      - ./compose/uwsgi:/tmp
+   links:
+      - db
+      - redis
+   depends_on:
+      - db
+      - redis
+   environment:
+      - DEBUG=False
+   restart: always
+   tty: true
+   stdin_open: true
+
+ nginx-proxy:
+   image: jwilder/nginx-proxy:alpine
+   restart: always
+   container_name: nginx-proxy
+   ports:
+      - "80:80"
+      - "443:443"
+   volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - html:/usr/share/nginx/html
+      - dhparam:/etc/nginx/dhparam
+      - vhost:/etc/nginx/vhost.d
+      - certs:/etc/nginx/certs:ro
+
+ nginx-proxy-letsencrypt:
+   image: jrcs/letsencrypt-nginx-proxy-companion
+   restart: always
+   depends_on:
+      - "nginx-proxy"
+   volumes:
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+   environment:
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+      - DEFAULT_EMAIL=yanboss168168@gmail.com
+
+ nginx:
+   build: ./compose/nginx
+   volumes:
+      - ./amusement/static:/usr/share/nginx/html/static
+      - ./compose/nginx/ssl:/usr/share/nginx/ssl
+      - ./compose/nginx/log:/var/log/nginx
+      - myproject_media_vol:/usr/share/nginx/html/media
+   links:
+      - web
+   depends_on:
+      - web
+   restart: always
+   environment:
+      - VIRTUAL_HOST=957warringstates.com,www.957warringstates.com
+      - VIRTUAL_NETWORK=nginx-proxy
+      - VIRTUAL_PORT=80
+      - LETSENCRYPT_HOST=957warringstates.com,www.957warringstates.com
+      - LETSENCRYPT_EMAIL=yanboss168168@gmail.com

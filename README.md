@@ -1,3 +1,3 @@
 # amusement
 This is an amazing project created by a group of students from NTUST.  
-Management of large-scale management systems using services such as Django and Line Bot.
+The management system includes human resources, finance, directors, profit-sharing settings, etc., and utilizes Django and LineBot.
